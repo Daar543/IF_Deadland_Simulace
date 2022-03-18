@@ -26,7 +26,7 @@ class Fighter:
         self.Name = name
         self.HealthMax = hp
         self.HealthCurrent = self.HealthMax
-        self.Thresh = math.ceil(self.HealthMax/3)
+        self.Thresh = math.ceil(self.HealthMax/3) #Todo: This should not affect characters with extra max hp (their low threshold should be the same for all)
         self.DefenseVal = deff
         self.AttackStr = atk
         self.BonusDmg = bon
@@ -77,6 +77,7 @@ class Fighter:
         rng = random.random()
         return hperc + rng
 
+#Záznam soubojů jednoho kola
 class Round():
     def __init__(self,previous:'Round'=None,fighters:list=None):
         
@@ -88,7 +89,7 @@ class Round():
             self.fighters = fighters
             assert(fighters!=None)
 
-        self.attacks = []
+        self.attacks = [] #Attacks = kdo na koho útočil a za kolik
 
     def GetLast(self):
         return self.attacks[-1][0]
@@ -108,6 +109,7 @@ class Round():
             else:
                 fighters.insert(position,first)
 
+    #Vyber nejvhodnější cíl
     def PickTarget(self,fighter):
         assert(fighter.GetState()!=State.Eliminated)
         prio = -2**10
@@ -119,13 +121,14 @@ class Round():
                 continue
             if f.GetState()==State.Eliminated:
                 continue
-            priority = f.GetPriority() #Even if two players get same priority, still randomize it
+            priority = f.GetPriority()
             if priority > prio:
                 chosen = f
                 cid = id
                 prio = priority
         return cid,chosen
 
+    #Vybere útočníky v náhodném pořadí. Útoky se vyhodnocují hned, ne všechny najednou
     def Simulate(self):
         self.SortAttackers()
         A:Fighter
@@ -134,14 +137,14 @@ class Round():
             if (A.GetState()==State.Eliminated):
                 continue
             _,D = self.PickTarget(A)
-            if not D: #Nobody to atk
+            if not D: #Není na koho útočit
                 return
             dmg,state = A.Attack(D)
             self.attacks.append( (A.Name,D.Name,dmg) )
         return 
 
 
-
+#Simulace celého souboje, momentálně mají všichni stejně zdraví (parametr "verbose" vypisuje stav po jednotlivých kolech)
 def OneFight(FighterCount,Health,Attack,Defense,Bonus,Names,verbose=False):
     assert(len(Names)>=FighterCount)
     Fighters = [Fighter(Names[i],Health,Attack,Defense,Bonus) for i in range(FighterCount)]
@@ -173,6 +176,7 @@ def OneFight(FighterCount,Health,Attack,Defense,Bonus,Names,verbose=False):
         print("Počet kol:",len(rounds))
     return LastRound.fighters[0],len(rounds)
 
+#Spočítá více soubojů, počet výher pro jednotlivé hráče a průměrnou délku
 def EvalSims(FighterCount,Health,Attack,Defense,Bonus):
     Names = "ABCDEFGHIJKLMN"
 
@@ -198,7 +202,7 @@ def EvalSims(FighterCount,Health,Attack,Defense,Bonus):
     print("---\n")
     return winners, total/simulations
 
-def CalcDist(f1,f2): #Assuming the x are same
+def LeastSquareDiff(f1,f2): #Assuming the x are same
     assert len(f1) == len(f2)
     diff = 0
     for i in range(len(f1)):
@@ -212,7 +216,8 @@ def CalcVar(lst):
     avg = sum(lst)/len(lst)
     return sum ((it-avg)**2 for it in lst)
 
-def main():
+#Běží souboje s různými parametry, vabere ten s nejmeněím rozptylem 
+def CompareFights():
     counts = list(range(2,10+1))
     bestTotalVariance = 2**30
     bestVals = (None,None,None,None)
@@ -220,9 +225,9 @@ def main():
     bestWinCounts = None
 
     try:
-        for Health in range(10,30):
-            for Attack in range(3,7):
-                for Defense in range(3,3+1): #In this case, only the A-D really matters since we do not introduce any extra bonuses
+        for Health in range(10,30+1):
+            for Attack in range(0,4+1):
+                for Defense in range(0,1): #In this case, only the A-D really matters since we do not introduce any extra bonuses
                     for Bonus in range(0,1+1):
                         avgs = [] 
                         winning = []
@@ -238,10 +243,6 @@ def main():
                             bestTotalVariance = totalVariance
                             bestVals = (Health,Attack,Defense,Bonus) #Change this when the extra bonuses get introduced
                             bestWinCounts = winning
-                        #plt.plot(counts,avgs,label="ÚČ {Bonus}")
-                    """fname = f"H{Health}_A{Attack}_D{Defense}.pdf"
-                    plt.savefig(fname)
-                    plt.close()"""
     except KeyboardInterrupt:
         pass
     except:
@@ -251,7 +252,17 @@ def main():
         print(bestWinCounts)
         print(bestAvgs)
         print(bestTotalVariance)
-                    
+
+
+def main():
+    #CompareFights()
+    FighterCount = 5
+    Health = 17
+    Attack = 4
+    Defense = 3
+    Bonus = 1
+    winners, average = EvalSims(FighterCount,Health,Attack,Defense,Bonus)
+    print(winners,average)
     
 if __name__ == "__main__":
     main()
